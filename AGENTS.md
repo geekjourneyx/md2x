@@ -79,6 +79,7 @@ make build
 - GitHub release tags use `vX.Y.Z`.
 - Push the release tag to trigger the GitHub release workflow: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`.
 - Do not publish npm manually unless the GitHub release workflow is unavailable and the same release gates have passed locally.
+- After npm publish succeeds, sync the China npm mirror with `npx cnpm sync @geekjourneyx/md2x` and verify `https://registry.npmmirror.com` reports the same version.
 - Release artifacts must include docs and `assets/banner.webp`.
 - npm package metadata must remain `@geekjourneyx/md2x`.
 - npm license must remain `AGPL-3.0-only` unless the project owner explicitly changes licensing.
@@ -98,3 +99,4 @@ make build
 - First npm publish creates the package automatically when the scope is owned by the publisher.
 - Scoped public npm publish requires `npm publish --access public`.
 - The release workflow must run quality gates before publishing npm artifacts.
+- The release workflow must sync cnpm/npmmirror after npm publish. Manual fallback releases must run `npx cnpm sync @geekjourneyx/md2x` after npm publish and verify `npm view @geekjourneyx/md2x version --registry=https://registry.npmmirror.com`.

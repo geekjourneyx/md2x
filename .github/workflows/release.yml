@@ -258,3 +258,28 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public
+
+      - name: Sync cnpm mirror
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if npx --yes cnpm sync @geekjourneyx/md2x; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          npx --yes cnpm sync @geekjourneyx/md2x
+
+      - name: Verify npmmirror package
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          for attempt in 1 2 3 4 5; do
+            mirror_version="$(npm view @geekjourneyx/md2x version --registry=https://registry.npmmirror.com 2>/dev/null || true)"
+            if [ "$mirror_version" = "$version" ]; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          echo "npmmirror version did not become ${version}" >&2
+          exit 1

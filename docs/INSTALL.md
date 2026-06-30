@@ -9,6 +9,15 @@ npm install -g @geekjourneyx/md2x
 md2x version
 ```
 
+## npmmirror
+
+Users in regions where the public npm registry is slow can install from npmmirror after a release has synced:
+
+```bash
+npm install -g @geekjourneyx/md2x --registry=https://registry.npmmirror.com
+md2x version
+```
+
 ## From Source
 
 ```bash

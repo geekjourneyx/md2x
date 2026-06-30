@@ -40,5 +40,6 @@ For release work:
 - Keep `VERSION`, `package.json`, and the top `CHANGELOG.md` entry aligned.
 - Use annotated tags: `git tag -a vX.Y.Z -m "vX.Y.Z"`.
 - Push the tag to trigger the GitHub release workflow.
+- Confirm npm and npmmirror both show the released version after the workflow completes.
 
-Do not manually publish npm unless the GitHub release workflow is unavailable and the same gates have passed locally.
+Do not manually publish npm unless the GitHub release workflow is unavailable and the same gates have passed locally. If a manual npm fallback is required, run `npx cnpm sync @geekjourneyx/md2x` after `npm publish --access public`.

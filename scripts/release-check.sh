@@ -49,6 +49,7 @@ required_files=(
   "docs/INSTALL.md"
   "docs/MARKDOWN.md"
   "docs/QUICKSTART.md"
+  "docs/RELEASE.md"
   "docs/README.md"
   "docs/SMOKE.md"
   "docs/TROUBLESHOOTING.md"
@@ -110,6 +111,7 @@ contains ".github/workflows/release.yml" "cp assets/banner.webp" "release workfl
 contains ".github/workflows/release.yml" "cp README.md README_ZH.md CONTRIBUTING.md LICENSE CHANGELOG.md COMMERCIAL.md" "release workflow must include root docs and notices in GitHub artifacts"
 
 contains "docs/README.md" "Quickstart" "docs index must link quickstart"
+contains "docs/README.md" "Release Process" "docs index must link release process"
 contains "docs/AUTHENTICATION.md" "md2x auth login" "AUTHENTICATION must include native login"
 contains "docs/OAUTH2-PKCE.md" "https://docs.x.com/fundamentals/authentication/oauth-2-0/user-access-token" "OAUTH2-PKCE must link X OAuth2 docs"
 
@@ -119,6 +121,10 @@ contains ".github/workflows/release.yml" "run: make quality-gates" "release work
 contains ".github/workflows/release.yml" "npm pack --pack-destination" "release workflow must smoke-pack npm package before publishing"
 contains ".github/workflows/release.yml" "npm publish --access public" "release workflow must publish npm"
 contains ".github/workflows/release.yml" "NPM_TOKEN" "release workflow must use NPM_TOKEN"
+contains ".github/workflows/release.yml" "npx --yes cnpm sync @geekjourneyx/md2x" "release workflow must sync cnpm after npm publish"
+contains ".github/workflows/release.yml" "registry.npmmirror.com" "release workflow must verify npmmirror after cnpm sync"
+contains "AGENTS.md" "npx cnpm sync @geekjourneyx/md2x" "AGENTS must document cnpm sync release rule"
+contains "docs/RELEASE.md" "npx cnpm sync @geekjourneyx/md2x" "release docs must document cnpm sync"
 
 node -c scripts/install.js >/dev/null
 node -c scripts/run.js >/dev/null

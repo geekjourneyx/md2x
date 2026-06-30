@@ -19,6 +19,7 @@
 - [Configuration](CONFIG.md)
 - [Markdown Syntax](MARKDOWN.md)
 - [X API Contract](X-API.md)
+- [Release Process](RELEASE.md)
 
 ## Agent Workflow
 
@@ -42,5 +43,6 @@
 6. [Usage](USAGE.md)
 7. [X API Contract](X-API.md)
 8. [Agent Guide](AGENT-GUIDE.md)
-9. [Smoke Tests](SMOKE.md)
-10. [Troubleshooting](TROUBLESHOOTING.md)
+9. [Release Process](RELEASE.md)
+10. [Smoke Tests](SMOKE.md)
+11. [Troubleshooting](TROUBLESHOOTING.md)
