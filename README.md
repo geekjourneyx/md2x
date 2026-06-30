@@ -2,7 +2,7 @@
 
 # md2x
 
-**Turn Markdown into X Articles drafts from your terminal and agents.**
+**Agent Native Go CLI for turning Markdown into X Articles drafts.**
 
 <img src="assets/banner.webp" alt="md2x converts Markdown into X Articles drafts" width="100%" />
 
@@ -12,10 +12,11 @@
 
 ## What It Does
 
-md2x does three things:
+md2x is an Agent Native CLI for Markdown-to-X Articles publishing workflows. It does four things:
 
 - `inspect` checks Markdown readiness before you authenticate.
 - `render` produces deterministic DraftJS `content_state`.
+- `auth` manages X OAuth2 PKCE login for user-context API access.
 - `draft` creates X Article drafts through the official X API.
 
 V1 is draft-first. It creates drafts and does not publish by default, so terminal users and agents can stop at a reviewable state before anything goes live.
@@ -35,7 +36,7 @@ For legacy `xurl` token stores, `md2x draft article.md --app md2x --json` remain
 
 ## Why md2x Exists
 
-X Articles are not plain Markdown. The API expects DraftJS content state, uploaded media IDs, and user-context authentication. md2x hides that behind a small CLI contract that is easy for humans to run and easy for agents to reason about.
+X Articles are not plain Markdown. The API expects DraftJS content state, uploaded media IDs, and user-context authentication. md2x turns that into a small Agent Native CLI contract that is easy for humans to run and easy for agents to reason about.
 
 The source file stays Markdown. The compiler path stays inspectable. The live API call is isolated to draft creation.
 

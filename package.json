@@ -1,7 +1,7 @@
 {
   "name": "@geekjourneyx/md2x",
   "version": "1.0.0",
-  "description": "Install the md2x CLI from the matching GitHub Release bundle.",
+  "description": "Agent Native Go CLI for turning Markdown into X Articles drafts with DraftJS, media upload, and OAuth2 PKCE.",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",

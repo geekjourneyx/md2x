@@ -2,7 +2,7 @@
 
 # md2x
 
-**把 Markdown 从终端或 Agent 转成 X Articles 草稿。**
+**面向 Agent Native 工作流的 Go CLI：把 Markdown 发布链路推进到 X Articles 草稿。**
 
 <img src="assets/banner.webp" alt="md2x converts Markdown into X Articles drafts" width="100%" />
 
@@ -14,7 +14,7 @@
 
 X Articles 不是普通 Markdown。官方 API 需要 DraftJS `content_state`、已上传的媒体 ID，以及用户上下文 OAuth2 授权。
 
-md2x 把这条链路收敛成一个小而稳定的 CLI：
+md2x 把这条链路收敛成一个 Agent Native CLI：命令稳定、JSON 可机读、错误可诊断，适合人类终端和 Agent 自动化共同使用。
 
 - `inspect`：在认证前检查 Markdown、frontmatter 和本地图片。
 - `render`：离线生成可检查、可 diff 的 DraftJS JSON。
