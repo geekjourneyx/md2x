@@ -81,8 +81,11 @@ changelog_heading="$(awk '/^## \[[^]]+\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$/{print; e
 package_license="$(node -p "require('./package.json').license")"
 [[ "$package_license" == "AGPL-3.0-only" ]] || fail "package.json license must be AGPL-3.0-only"
 
-if [[ -n "${GITHUB_REF_NAME:-}" && "$GITHUB_REF_NAME" != "v$version" ]]; then
-  fail "git ref ${GITHUB_REF_NAME} does not match v${version}"
+github_ref_name="${GITHUB_REF_NAME:-}"
+github_ref_type="${GITHUB_REF_TYPE:-}"
+github_ref="${GITHUB_REF:-}"
+if [[ "$github_ref_type" == "tag" || "$github_ref" == refs/tags/* ]]; then
+  [[ "$github_ref_name" == "v$version" ]] || fail "git ref ${github_ref_name:-${github_ref}} does not match v${version}"
 fi
 
 contains "README.md" "npm install -g @geekjourneyx/md2x" "README must document npm install"
