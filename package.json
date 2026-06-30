@@ -1,7 +1,7 @@
 {
   "name": "@geekjourneyx/md2x",
   "version": "1.0.0",
-  "description": "Agent Native Go CLI for turning Markdown into X Articles drafts with DraftJS, media upload, and OAuth2 PKCE.",
+  "description": "Agent Native CLI for publishing Markdown to X Articles with DraftJS, media upload, and OAuth2 PKCE.",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
