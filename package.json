@@ -1,0 +1,39 @@
+{
+  "name": "@geekjourneyx/md2x",
+  "version": "1.0.0",
+  "description": "Install the md2x CLI from the matching GitHub Release bundle.",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/geekjourneyx/md2x.git"
+  },
+  "homepage": "https://github.com/geekjourneyx/md2x#readme",
+  "bugs": {
+    "url": "https://github.com/geekjourneyx/md2x/issues"
+  },
+  "bin": {
+    "md2x": "scripts/run.js"
+  },
+  "scripts": {
+    "pack:check": "npm pack --json --dry-run",
+    "postinstall": "node scripts/install.js"
+  },
+  "files": [
+    "scripts/install.js",
+    "scripts/run.js",
+    "docs/*.md",
+    "assets/banner.webp",
+    "README.md",
+    "README_ZH.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
+    "COMMERCIAL.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

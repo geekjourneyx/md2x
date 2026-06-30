@@ -1,0 +1,21 @@
+# Local agent/workflow scratch space
+docs/superpowers/
+.agents/
+.codex/
+
+# Build outputs
+bin/
+dist/
+coverage.out
+
+# Go test/build cache artifacts that may appear locally
+*.test
+
+# npm/local package artifacts
+node_modules/
+*.tgz
+npm-debug.log*
+
+# OS/editor noise
+.DS_Store
+*.swp

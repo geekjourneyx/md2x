@@ -1,0 +1,260 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  checks:
+    name: Release checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run quality gates
+        run: make quality-gates
+
+  build:
+    name: Build ${{ matrix.goos }} ${{ matrix.goarch }}
+    needs: checks
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            ext: ""
+            archive: tar.gz
+          - goos: linux
+            goarch: arm64
+            ext: ""
+            archive: tar.gz
+          - goos: darwin
+            goarch: amd64
+            ext: ""
+            archive: tar.gz
+          - goos: darwin
+            goarch: arm64
+            ext: ""
+            archive: tar.gz
+          - goos: windows
+            goarch: amd64
+            ext: ".exe"
+            archive: zip
+          - goos: windows
+            goarch: arm64
+            ext: ".exe"
+            archive: zip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          NAME="md2x_${VERSION}_${GOOS}_${GOARCH}"
+          mkdir -p "dist/${NAME}"
+          go build -buildvcs=false -trimpath -ldflags="-s -w -X github.com/geekjourneyx/md2x/internal/cli.version=${VERSION}" -o "dist/${NAME}/md2x${{ matrix.ext }}" ./cmd/md2x
+          cp README.md README_ZH.md CONTRIBUTING.md LICENSE CHANGELOG.md COMMERCIAL.md "dist/${NAME}/"
+          mkdir -p "dist/${NAME}/docs"
+          cp docs/*.md "dist/${NAME}/docs/"
+          mkdir -p "dist/${NAME}/assets"
+          cp assets/banner.webp "dist/${NAME}/assets/"
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            (cd dist && zip -r "${NAME}.zip" "${NAME}")
+          else
+            tar -C dist -czf "dist/${NAME}.tar.gz" "${NAME}"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: md2x-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/md2x_*.${{ matrix.archive }}
+          if-no-files-found: error
+
+  smoke-npm:
+    name: Smoke npm installer
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: md2x-*
+          merge-multiple: true
+
+      - name: Smoke npm package against release artifacts
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum md2x_* > SHA256SUMS
+          cd ..
+
+          pack_dir="$(mktemp -d)"
+          prefix_dir="$(mktemp -d)"
+
+          npm pack --pack-destination "$pack_dir" >/dev/null
+          tarball="$(find "$pack_dir" -maxdepth 1 -name '*.tgz' -print -quit)"
+          test -n "$tarball"
+
+          MD2X_RELEASE_BASE_URL="${GITHUB_WORKSPACE}/dist" \
+          npm install -g "$tarball" --prefix "$prefix_dir"
+
+          "$prefix_dir/bin/md2x" version
+
+  smoke-npm-windows:
+    name: Smoke npm installer on Windows
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: md2x-*
+          merge-multiple: true
+
+      - name: Smoke npm package against release artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $distDir = Join-Path $env:GITHUB_WORKSPACE 'dist'
+          $packDir = Join-Path $env:RUNNER_TEMP 'md2x-npm-pack'
+          $prefixDir = Join-Path $env:RUNNER_TEMP 'md2x-npm-prefix'
+
+          Remove-Item -Force -Recurse $packDir, $prefixDir -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $packDir, $prefixDir | Out-Null
+
+          Get-ChildItem $distDir -Filter 'md2x_*' |
+            Sort-Object Name |
+            ForEach-Object {
+              $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant()
+              "$hash  $($_.Name)"
+            } | Set-Content -Encoding ascii (Join-Path $distDir 'SHA256SUMS')
+
+          npm pack --pack-destination $packDir | Out-Null
+          $tarball = Get-ChildItem $packDir -Filter *.tgz | Select-Object -First 1
+          if (-not $tarball) {
+            throw 'npm pack did not produce a tarball'
+          }
+
+          $env:MD2X_RELEASE_BASE_URL = $distDir
+          npm install -g $tarball.FullName --prefix $prefixDir
+
+          $packageRoot = npm root -g --prefix $prefixDir | Select-Object -Last 1
+          $packageNamePath = '@geekjourneyx/md2x'.Replace('/', '\')
+          $packageDir = Join-Path $packageRoot $packageNamePath
+          node (Join-Path $packageDir 'scripts\run.js') version
+
+  publish:
+    name: Publish GitHub release
+    needs:
+      - build
+      - smoke-npm
+      - smoke-npm-windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: md2x-*
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum md2x_* > SHA256SUMS
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/md2x_*
+            dist/SHA256SUMS
+          generate_release_notes: true
+
+  publish-npm:
+    name: Publish npm package
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check npm token
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NPM_TOKEN}" ]; then
+            echo "NPM_TOKEN is required to publish @geekjourneyx/md2x" >&2
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify package version matches tag
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          package_version="$(node -p "require('./package.json').version")"
+          if [ "$package_version" != "$version" ]; then
+            echo "package.json version ${package_version} does not match tag ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
+      - name: Publish npm package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
