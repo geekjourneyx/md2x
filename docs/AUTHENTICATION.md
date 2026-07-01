@@ -15,6 +15,8 @@ md2x auth status
 
 Full setup is in [OAuth2 PKCE Tutorial](OAUTH2-PKCE.md).
 
+During `md2x auth login`, the browser callback confirms that md2x received the OAuth `code`. The login is not complete until the terminal finishes the token exchange and reports that the local token was saved.
+
 ## Required X App Settings
 
 In the X Developer Portal, open your app and configure User authentication:

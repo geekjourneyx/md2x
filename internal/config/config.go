@@ -57,11 +57,11 @@ type RedactedAuthConfig struct {
 func DefaultPath() (string, error) {
 	configDir := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME"))
 	if configDir == "" {
-		userConfigDir, err := os.UserConfigDir()
+		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", fmt.Errorf("find user config directory: %w", err)
+			return "", fmt.Errorf("find home directory for config: %w", err)
 		}
-		configDir = userConfigDir
+		configDir = filepath.Join(home, ".config")
 	}
 	return filepath.Join(configDir, "md2x", "config.yaml"), nil
 }

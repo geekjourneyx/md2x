@@ -203,7 +203,7 @@ func newAuthLoginCommand(opts *rootOptions) *cobra.Command {
 	cmd.Flags().StringVar(&apiBaseURL, "api-base-url", md2xconfig.DefaultAPIBaseURL, "X API base URL")
 	cmd.Flags().StringVar(&authorizeURL, "authorize-url", md2xauth.DefaultAuthorizeURL, "X OAuth2 authorize URL")
 	cmd.Flags().BoolVar(&noOpen, "no-open", false, "print authorize URL instead of opening a browser")
-	cmd.Flags().DurationVar(&timeout, "timeout", 2*time.Minute, "OAuth2 callback timeout")
+	cmd.Flags().DurationVar(&timeout, "timeout", 2*time.Minute, "OAuth2 login timeout")
 	return cmd
 }
 
@@ -244,8 +244,9 @@ func runOAuthLogin(ctx context.Context, cfg md2xconfig.Config, store md2xauth.Fi
 	case <-waitCtx.Done():
 		return md2xauth.Token{}, &ExitError{Code: "AUTH_TIMEOUT", Message: "timed out waiting for OAuth2 callback", Exit: 3, Err: waitCtx.Err()}
 	}
+	_, _ = fmt.Fprintln(out, "OAuth callback received; exchanging code for token...")
 	client := md2xauth.Client{APIBaseURL: cfg.API.BaseURL}
-	token, err := client.ExchangeCode(ctx, md2xauth.ExchangeCodeRequest{
+	token, err := client.ExchangeCode(waitCtx, md2xauth.ExchangeCodeRequest{
 		ClientID:     cfg.Auth.ClientID,
 		Code:         code,
 		CodeVerifier: verifier,
@@ -257,6 +258,7 @@ func runOAuthLogin(ctx context.Context, cfg md2xconfig.Config, store md2xauth.Fi
 	if err := store.Save(token); err != nil {
 		return md2xauth.Token{}, &ExitError{Code: "AUTH_STORE_FAILED", Message: err.Error(), Exit: 3, Err: err}
 	}
+	_, _ = fmt.Fprintf(out, "OAuth token saved to %s\n", store.Path)
 	return token, nil
 }
 
@@ -293,7 +295,7 @@ func startCallbackServer(redirectURI, expectedState string, codeCh chan<- string
 			return
 		}
 		codeCh <- code
-		_, _ = fmt.Fprintln(w, "md2x authorization complete. You can close this tab.")
+		_, _ = fmt.Fprintln(w, "md2x received the authorization callback. Return to the terminal to finish login.")
 	})
 	go func() {
 		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {

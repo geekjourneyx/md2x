@@ -3,8 +3,41 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestDefaultPathUsesUnixConfigHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
+
+	path, err := DefaultPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(home, ".config", "md2x", "config.yaml")
+	if path != want {
+		t.Fatalf("DefaultPath() = %q, want %q", path, want)
+	}
+	if strings.Contains(path, "Application Support") {
+		t.Fatalf("DefaultPath() used platform app config directory: %q", path)
+	}
+}
+
+func TestDefaultPathUsesXDGConfigHomeOverride(t *testing.T) {
+	configHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+
+	path, err := DefaultPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(configHome, "md2x", "config.yaml")
+	if path != want {
+		t.Fatalf("DefaultPath() = %q, want %q", path, want)
+	}
+}
 
 func TestLoadMissingConfigReturnsDefaults(t *testing.T) {
 	cfg, found, err := Load(filepath.Join(t.TempDir(), "missing.yaml"))

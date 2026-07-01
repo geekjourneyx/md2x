@@ -63,6 +63,8 @@ md2x will:
 4. Exchange the callback `code` for an access token and refresh token.
 5. Save the token locally with `0600` permissions.
 
+The browser callback page only means md2x received the authorization callback. Keep the terminal open until it prints that the OAuth token was saved. If the terminal is still running after the callback, md2x is usually exchanging the code with X's token endpoint.
+
 For servers or agent sessions without a browser:
 
 ```bash

@@ -22,6 +22,19 @@ Confirm the token has these scopes:
 - `media.write`
 - `offline.access`
 
+## Browser Callback Succeeded But CLI Is Still Running
+
+The callback page means md2x received the OAuth `code`. The CLI still needs to exchange that code with X's token endpoint and write the local token store.
+
+Keep the terminal open until it prints that the OAuth token was saved. If it does not finish, check:
+
+```bash
+md2x config show
+md2x auth login --timeout 30s
+```
+
+Make sure `api.base_url` is `https://api.x.com` unless you are intentionally testing against a mock endpoint.
+
 ## X_DRAFT_FAILED
 
 X rejected the draft creation request or media upload.

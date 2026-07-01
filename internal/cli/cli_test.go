@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -217,10 +218,29 @@ func TestRunOAuthLoginCompletesPKCECallbackAndStoresToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("callback request: %v", err)
 	}
+	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "authorization complete") {
+		t.Fatalf("callback page claims login is complete before token exchange: %s", body)
+	}
+	if !strings.Contains(string(body), "received the authorization callback") {
+		t.Fatalf("callback page = %q, want callback received message", body)
+	}
 
 	if err := <-result; err != nil {
 		t.Fatal(err)
+	}
+	writer.mu.Lock()
+	progress := writer.buf.String()
+	writer.mu.Unlock()
+	if !strings.Contains(progress, "OAuth callback received; exchanging code for token") {
+		t.Fatalf("progress output missing token exchange stage:\n%s", progress)
+	}
+	if !strings.Contains(progress, "OAuth token saved to ") {
+		t.Fatalf("progress output missing token store stage:\n%s", progress)
 	}
 	if token.AccessToken != "login-access" || token.RefreshToken != "login-refresh" {
 		t.Fatalf("token = %#v", token)
