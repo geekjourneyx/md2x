@@ -1,4 +1,4 @@
-VERSION ?= 1.0.0
+VERSION ?= $(shell tr -d '[:space:]' < VERSION)
 GO_MAIN_PACKAGE ?= ./cmd/md2x
 CLI_NAME ?= md2x
 GOFLAGS ?= -buildvcs=false

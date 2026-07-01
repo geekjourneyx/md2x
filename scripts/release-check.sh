@@ -81,6 +81,7 @@ changelog_heading="$(awk '/^## \[[^]]+\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$/{print; e
 [[ "$changelog_heading" == "## [${version}] - "* ]] || fail "top CHANGELOG entry must be '## [${version}] - YYYY-MM-DD'"
 package_license="$(node -p "require('./package.json').license")"
 [[ "$package_license" == "AGPL-3.0-only" ]] || fail "package.json license must be AGPL-3.0-only"
+contains "internal/cli/root.go" "var version = \"$version\"" "internal CLI fallback version must match release version"
 
 github_ref_name="${GITHUB_REF_NAME:-}"
 github_ref_type="${GITHUB_REF_TYPE:-}"
