@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.2] - 2026-07-01
+
+- Fixed X Article draft creation for ordered lists by omitting parser-only `data.number` fields from DraftJS blocks.
+- Added unit and e2e coverage to prevent internal ordered-list metadata from leaking into the live X payload.
+- Calibrated Markdown and X API docs with the official `blocks[].data` schema constraints.
+
+Breaking changes: none.
+
+Migration notes: users who hit X API `400 Bad Request` for `content_state.blocks[].data.number` should upgrade and retry the same Markdown.
+
+Verification summary: full Go tests, quality gates, release checks, npm pack check, and local build were run before tagging.
+
 ## [1.0.1] - 2026-07-01
 
 - Fixed the default config path to use `${XDG_CONFIG_HOME:-~/.config}/md2x/config.yaml` on every platform.
