@@ -365,6 +365,10 @@ func TestRenderCommandRejectsUnsupportedFormat(t *testing.T) {
 }
 
 func TestDraftCommandFailsWithoutToken(t *testing.T) {
+	t.Setenv("X_BEARER_TOKEN", "")
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(t.TempDir(), "state"))
+
 	path := writeArticle(t, "---\ntitle: Test Article\n---\n\n# Test Article\n")
 	cmd, _ := newRootCommand()
 
@@ -474,6 +478,44 @@ func TestFailureEnvelopeIncludesDiagnostics(t *testing.T) {
 	}
 	if errorData["diagnostics"] == nil {
 		t.Fatalf("diagnostics missing from %#v", errorData)
+	}
+}
+
+func TestFailureEnvelopeIncludesDetails(t *testing.T) {
+	env := failureEnvelope(&ExitError{
+		Code:    "X_DRAFT_FAILED",
+		Message: "rate limited",
+		Details: map[string]interface{}{
+			"x_api": map[string]interface{}{"status_code": 429, "retryable": true},
+		},
+	})
+
+	errorData, ok := env.Error.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Error = %T, want map", env.Error)
+	}
+	if errorData["x_api"] == nil {
+		t.Fatalf("x_api details missing from %#v", errorData)
+	}
+}
+
+func TestXAPIErrorDetailsMarksRateLimitRetryable(t *testing.T) {
+	details := xAPIErrorDetails(&xapi.APIError{
+		Operation:  "create draft",
+		Status:     "429 Too Many Requests",
+		StatusCode: 429,
+		RateLimit:  &xapi.RateLimitInfo{Limit: 10, Remaining: 0, ResetUnix: 1893456000},
+	})
+
+	xapiDetails, ok := details["x_api"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("details = %#v, want x_api map", details)
+	}
+	if xapiDetails["retryable"] != true {
+		t.Fatalf("retryable = %#v, want true", xapiDetails["retryable"])
+	}
+	if xapiDetails["rate_limit"] == nil {
+		t.Fatalf("rate_limit missing from %#v", xapiDetails)
 	}
 }
 

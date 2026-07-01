@@ -26,6 +26,7 @@ type ExitError struct {
 	Exit        int
 	Err         error
 	Diagnostics []article.Diagnostic
+	Details     map[string]interface{}
 }
 
 func (e *ExitError) Error() string {
@@ -64,6 +65,9 @@ func failureEnvelope(err *ExitError) Envelope {
 	}
 	if len(err.Diagnostics) > 0 {
 		errorData["diagnostics"] = err.Diagnostics
+	}
+	for key, value := range err.Details {
+		errorData[key] = value
 	}
 	return Envelope{
 		Success:       false,

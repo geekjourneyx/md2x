@@ -31,7 +31,13 @@ func md2xCommand(t *testing.T, args ...string) *exec.Cmd {
 	t.Helper()
 
 	cmd := exec.Command(md2xBinary(t), args...)
-	cmd.Env = append(os.Environ(), "GOCACHE="+testGoCache)
+	cmd.Env = append(
+		os.Environ(),
+		"GOCACHE="+testGoCache,
+		"X_BEARER_TOKEN=",
+		"XDG_CONFIG_HOME="+filepath.Join(t.TempDir(), "config"),
+		"XDG_STATE_HOME="+filepath.Join(t.TempDir(), "state"),
+	)
 	return cmd
 }
 

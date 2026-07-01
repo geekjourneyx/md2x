@@ -27,6 +27,8 @@ type DraftResult struct {
 }
 
 func (c *Client) CreateDraft(input CreateDraftRequest) (*DraftResult, error) {
+	input = normalizeCreateDraftRequest(input)
+
 	body, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("encode draft request: %w", err)
@@ -48,7 +50,7 @@ func (c *Client) CreateDraft(input CreateDraftRequest) (*DraftResult, error) {
 	}()
 
 	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("create draft returned %s: %s", resp.Status, readErrorBody(resp.Body))
+		return nil, apiError("create draft", resp)
 	}
 
 	var decoded struct {
@@ -68,6 +70,21 @@ func (c *Client) CreateDraft(input CreateDraftRequest) (*DraftResult, error) {
 		ID:    decoded.Data.ID,
 		Title: decoded.Data.Title,
 	}, nil
+}
+
+func normalizeCreateDraftRequest(input CreateDraftRequest) CreateDraftRequest {
+	if input.ContentState == nil {
+		return input
+	}
+	contentState := *input.ContentState
+	if contentState.Blocks == nil {
+		contentState.Blocks = []draftjs.Block{}
+	}
+	if contentState.Entities == nil {
+		contentState.Entities = []draftjs.Entity{}
+	}
+	input.ContentState = &contentState
+	return input
 }
 
 func readErrorBody(r io.Reader) string {

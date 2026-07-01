@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var version = "1.0.2"
+var version = "1.0.3"
 
 type rootOptions struct {
 	json       bool

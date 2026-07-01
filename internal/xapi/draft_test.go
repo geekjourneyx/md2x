@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -109,6 +110,39 @@ func TestCreateDraftSendsArticlePayload(t *testing.T) {
 	}
 }
 
+func TestCreateDraftNormalizesNilContentStateSlices(t *testing.T) {
+	var rawBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		rawBody = string(data)
+
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"data":{"id":"1146654567674912769","title":"Hello"}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "token-123", server.Client())
+	_, err := client.CreateDraft(CreateDraftRequest{
+		Title:        "Hello",
+		ContentState: &draftjs.ContentState{},
+	})
+	if err != nil {
+		t.Fatalf("CreateDraft returned error: %v", err)
+	}
+	if !strings.Contains(rawBody, `"blocks":[]`) {
+		t.Fatalf("request body = %s, want blocks empty array", rawBody)
+	}
+	if !strings.Contains(rawBody, `"entities":[]`) {
+		t.Fatalf("request body = %s, want entities empty array", rawBody)
+	}
+	if strings.Contains(rawBody, `null`) {
+		t.Fatalf("request body = %s, want no null arrays", rawBody)
+	}
+}
+
 func TestCreateDraftNonCreatedReturnsError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
@@ -127,6 +161,42 @@ func TestCreateDraftNonCreatedReturnsError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "create draft returned 400 Bad Request") {
 		t.Fatalf("error = %q, want status context", err.Error())
+	}
+}
+
+func TestCreateDraftRateLimitErrorIncludesHeaders(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("x-rate-limit-limit", "10")
+		w.Header().Set("x-rate-limit-remaining", "0")
+		w.Header().Set("x-rate-limit-reset", "1893456000")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"title":"Too Many Requests","status":429}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "token-123", server.Client())
+	_, err := client.CreateDraft(CreateDraftRequest{
+		Title:        "Hello",
+		ContentState: &draftjs.ContentState{},
+	})
+	if err == nil {
+		t.Fatal("CreateDraft returned nil error, want rate limit error")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("error = %T, want APIError", err)
+	}
+	if apiErr.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("StatusCode = %d, want 429", apiErr.StatusCode)
+	}
+	if apiErr.RateLimit == nil {
+		t.Fatal("RateLimit = nil, want parsed headers")
+	}
+	if apiErr.RateLimit.Limit != 10 || apiErr.RateLimit.Remaining != 0 || apiErr.RateLimit.ResetUnix != 1893456000 {
+		t.Fatalf("RateLimit = %#v, want parsed limit headers", apiErr.RateLimit)
+	}
+	if apiErr.RateLimit.ResetAt != "2030-01-01T00:00:00Z" {
+		t.Fatalf("ResetAt = %q, want 2030-01-01T00:00:00Z", apiErr.RateLimit.ResetAt)
 	}
 }
 

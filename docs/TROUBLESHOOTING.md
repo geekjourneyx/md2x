@@ -48,6 +48,25 @@ Remediation:
 
 If the failure is rate-limit related, wait before retrying. If it is a media error, verify file paths, file sizes, and supported image formats.
 
+For `429 Too Many Requests`, inspect the JSON error details:
+
+```json
+{
+  "x_api": {
+    "status_code": 429,
+    "retryable": true,
+    "rate_limit": {
+      "limit": 1,
+      "remaining": 0,
+      "reset_at": "2030-01-01T00:00:00Z",
+      "retry_after_seconds": 600
+    }
+  }
+}
+```
+
+If `remaining` is `0`, wait until `reset_at` before retrying. If the first request for a new app returns 429, verify the X developer console package/environment, regenerate OAuth2 credentials for the Production app, and run `md2x auth logout && md2x auth login` so the stored token matches the active app.
+
 ## Draft Was Not Published
 
 This is expected in V1. md2x creates X Article drafts and does not publish by default.

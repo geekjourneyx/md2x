@@ -92,7 +92,7 @@ func (c *Client) initializeMediaUpload(totalBytes int64, mediaType string) (stri
 	}()
 
 	if !isSuccess(resp.StatusCode) {
-		return "", fmt.Errorf("initialize media upload returned %s: %s", resp.Status, readErrorBody(resp.Body))
+		return "", apiError("initialize media upload", resp)
 	}
 
 	var decoded struct {
@@ -152,7 +152,7 @@ func (c *Client) appendMediaUpload(mediaID, filePath string) error {
 	}()
 
 	if !isSuccess(resp.StatusCode) {
-		return fmt.Errorf("append media upload returned %s: %s", resp.Status, readErrorBody(resp.Body))
+		return apiError("append media upload", resp)
 	}
 	return nil
 }
@@ -173,7 +173,7 @@ func (c *Client) finalizeMediaUpload(mediaID string) error {
 	}()
 
 	if !isSuccess(resp.StatusCode) {
-		return fmt.Errorf("finalize media upload returned %s: %s", resp.Status, readErrorBody(resp.Body))
+		return apiError("finalize media upload", resp)
 	}
 
 	var decoded struct {
@@ -251,7 +251,7 @@ func (c *Client) mediaProcessingStatus(mediaID string) (*mediaProcessingInfo, er
 	}()
 
 	if !isSuccess(resp.StatusCode) {
-		return nil, fmt.Errorf("media upload status returned %s: %s", resp.Status, readErrorBody(resp.Body))
+		return nil, apiError("media upload status", resp)
 	}
 
 	var decoded struct {

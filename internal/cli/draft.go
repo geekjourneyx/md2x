@@ -105,7 +105,7 @@ func newDraftCommand(opts *rootOptions) *cobra.Command {
 				if errors.As(err, &mediaValidationErr) {
 					return &ExitError{Code: "MEDIA_VALIDATION_FAILED", Message: err.Error(), Exit: 2, Err: err}
 				}
-				return &ExitError{Code: "X_MEDIA_UPLOAD_FAILED", Message: err.Error(), Exit: 4, Err: err}
+				return &ExitError{Code: "X_MEDIA_UPLOAD_FAILED", Message: err.Error(), Exit: 4, Err: err, Details: xAPIErrorDetails(err)}
 			}
 
 			contentState, err := draftjs.Render(doc)
@@ -119,7 +119,7 @@ func newDraftCommand(opts *rootOptions) *cobra.Command {
 				CoverMedia:   coverMedia,
 			})
 			if err != nil {
-				return &ExitError{Code: "X_DRAFT_FAILED", Message: err.Error(), Exit: 4, Err: err}
+				return &ExitError{Code: "X_DRAFT_FAILED", Message: err.Error(), Exit: 4, Err: err, Details: xAPIErrorDetails(err)}
 			}
 
 			if opts.json {
@@ -149,6 +149,32 @@ func newDraftCommand(opts *rootOptions) *cobra.Command {
 	cmd.Flags().StringVar(&authProfile, "auth-profile", "", "local OAuth2 token profile")
 	cmd.Flags().StringVar(&apiBaseURL, "api-base-url", md2xconfig.DefaultAPIBaseURL, "X API base URL")
 	return cmd
+}
+
+func xAPIErrorDetails(err error) map[string]interface{} {
+	var apiErr *xapi.APIError
+	if !errors.As(err, &apiErr) {
+		return nil
+	}
+	apiDetails := map[string]interface{}{
+		"operation":   apiErr.Operation,
+		"status":      apiErr.Status,
+		"status_code": apiErr.StatusCode,
+		"retryable":   retryableStatus(apiErr.StatusCode),
+	}
+	if apiErr.RateLimit != nil {
+		apiDetails["rate_limit"] = apiErr.RateLimit
+	}
+	return map[string]interface{}{"x_api": apiDetails}
+}
+
+func retryableStatus(statusCode int) bool {
+	switch statusCode {
+	case 429, 500, 502, 503, 504:
+		return true
+	default:
+		return false
+	}
 }
 
 func resolveDraftAccessToken(cmd *cobra.Command, cfg md2xconfig.Config) (string, error) {

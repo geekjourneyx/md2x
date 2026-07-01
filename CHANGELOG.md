@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.3] - 2026-07-01
+
+- Fixed X Article draft creation for Markdown without links or media by serializing empty DraftJS `entities` as `[]` instead of `null`.
+- Added defensive request normalization so draft payload `blocks` and `entities` remain arrays at the X API boundary.
+- Added structured X API failure details for rate limits and transient server errors, including retryability and `x-rate-limit-*` reset metadata when X returns it.
+- Improved test isolation so local config and native OAuth token stores cannot leak into no-token tests.
+- Documented 429 troubleshooting and retry guidance.
+
+Breaking changes: none.
+
+Migration notes: users who hit X API `400 Bad Request` for `content_state.entities: null found, array expected` should upgrade and retry the same Markdown. Users seeing `429 Too Many Requests` should inspect `error.x_api.rate_limit` in JSON output and retry after `reset_at` when present.
+
+Verification summary: full Go tests, quality gates, release checks, npm pack check, and local build were run before tagging.
+
 ## [1.0.2] - 2026-07-01
 
 - Fixed X Article draft creation for ordered lists by omitting parser-only `data.number` fields from DraftJS blocks.

@@ -15,7 +15,8 @@ func Render(doc *article.Document) (*ContentState, error) {
 	}
 
 	state := &ContentState{
-		Blocks: make([]Block, 0, len(doc.Blocks)),
+		Blocks:   make([]Block, 0, len(doc.Blocks)),
+		Entities: make([]Entity, 0),
 	}
 	for i, source := range doc.Blocks {
 		block := Block{

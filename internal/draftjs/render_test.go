@@ -103,6 +103,35 @@ func TestRenderOmitsInternalOrderedListData(t *testing.T) {
 	}
 }
 
+func TestRenderNoEntitiesSerializesEmptyArray(t *testing.T) {
+	doc := &article.Document{
+		Blocks: []article.Block{
+			{Type: "heading", Level: 1, Text: "Minimal Test"},
+			{Type: "paragraph", Text: "Hello from md2x."},
+		},
+	}
+
+	state, err := Render(doc)
+	if err != nil {
+		t.Fatalf("Render returned error: %v", err)
+	}
+	if state.Entities == nil {
+		t.Fatal("Entities = nil, want empty slice")
+	}
+
+	data, err := json.Marshal(state)
+	if err != nil {
+		t.Fatalf("Marshal content state: %v", err)
+	}
+	jsonText := string(data)
+	if !strings.Contains(jsonText, `"entities":[]`) {
+		t.Fatalf("content state JSON = %s, want entities empty array", jsonText)
+	}
+	if strings.Contains(jsonText, `"entities":null`) {
+		t.Fatalf("content state JSON contains entities:null: %s", jsonText)
+	}
+}
+
 func TestRenderItalicStyleRange(t *testing.T) {
 	doc := &article.Document{
 		Blocks: []article.Block{
