@@ -6,6 +6,8 @@ md2x V1 targets the official X Articles draft API. It creates reviewable drafts 
 
 | Operation | Endpoint | md2x V1 behavior |
 | --- | --- | --- |
+| Upload image media | `POST /2/media/upload` | Implemented by `md2x draft` for cover and body images. |
+| Chunked media upload | `POST /2/media/upload/initialize`, `append`, `finalize` | Reserved for future video/GIF/large-file support. Not the default V1 image path. |
 | Create draft article | `POST /2/articles/draft` | Implemented by `md2x draft`. |
 | Publish article | `POST /2/articles/{article_id}/publish` | Not implemented in V1. Users publish manually from X. |
 
@@ -127,7 +129,11 @@ Markdown links become `link` entities plus `entity_ranges`:
 
 ## Image Entities
 
-Body images are uploaded before draft creation. After upload, md2x emits an `atomic` block and an `image` entity:
+Images are uploaded before draft creation. V1 uses the single-step `POST /2/media/upload` endpoint for `.png`, `.jpg`, `.jpeg`, and `.webp` images because the official endpoint supports `tweet_image` directly and avoids the extra initialize/append/finalize requests needed by chunked upload.
+
+Within one `draft` command, md2x fingerprints local image files by media type, size, and SHA-256. Duplicate image contents are uploaded once and the resulting `media_id` is reused for every cover or body image reference in that draft.
+
+Body images are then emitted as an `atomic` block and an `image` entity:
 
 ```json
 {
@@ -156,6 +162,8 @@ Body images are uploaded before draft creation. After upload, md2x emits an `ato
   ]
 }
 ```
+
+Do not persist md2x media IDs as a long-term cache. X media upload responses can expire, so md2x only deduplicates inside the current command.
 
 ## Publish Boundary
 

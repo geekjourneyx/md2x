@@ -347,6 +347,43 @@ func TestInspectCommandReadsArticle(t *testing.T) {
 	}
 }
 
+func TestInspectCommandEstimatesUniqueMediaRequests(t *testing.T) {
+	dir := t.TempDir()
+	imagePath := filepath.Join(dir, "shared.png")
+	if err := os.WriteFile(imagePath, cliTestPNG, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	articlePath := filepath.Join(dir, "article.md")
+	if err := os.WriteFile(articlePath, []byte("---\ntitle: Media Estimate\ncover: ./shared.png\n---\n\n![Again](./shared.png)\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd, _ := newRootCommand()
+
+	out, err := executeCommand(t, cmd, "--json", "inspect", articlePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope struct {
+		Data struct {
+			UniqueMediaCount   int `json:"unique_media_count"`
+			EstimatedXRequests struct {
+				MediaUpload int `json:"media_upload"`
+				CreateDraft int `json:"create_draft"`
+				Total       int `json:"total"`
+			} `json:"estimated_x_requests"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(out), &envelope); err != nil {
+		t.Fatalf("unmarshal inspect output: %v\n%s", err, out)
+	}
+	if envelope.Data.UniqueMediaCount != 1 {
+		t.Fatalf("unique_media_count = %d, want 1\n%s", envelope.Data.UniqueMediaCount, out)
+	}
+	if envelope.Data.EstimatedXRequests.MediaUpload != 1 || envelope.Data.EstimatedXRequests.CreateDraft != 1 || envelope.Data.EstimatedXRequests.Total != 2 {
+		t.Fatalf("estimated_x_requests = %#v, want 1 upload + 1 draft", envelope.Data.EstimatedXRequests)
+	}
+}
+
 func TestRenderCommandRejectsUnsupportedFormat(t *testing.T) {
 	path := writeArticle(t, "---\ntitle: Test Article\n---\n\n# Test Article\n")
 	cmd, _ := newRootCommand()
@@ -609,4 +646,16 @@ func testOAuthConfig(apiBaseURL, redirectURI string) md2xconfig.Config {
 	cfg.Auth.RedirectURI = redirectURI
 	cfg.Auth.Scopes = []string{"tweet.read", "tweet.write", "offline.access"}
 	return cfg
+}
+
+var cliTestPNG = []byte{
+	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+	0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+	0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+	0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+	0xde, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41,
+	0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
+	0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xdd, 0x8d,
+	0xb0, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e,
+	0x44, 0xae, 0x42, 0x60, 0x82,
 }

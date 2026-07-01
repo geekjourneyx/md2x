@@ -41,18 +41,12 @@ func (e *MediaValidationError) Unwrap() error {
 }
 
 func (c *Client) UploadImage(filePath string) (*UploadMediaResult, error) {
-	mediaType, totalBytes, err := mediafile.ValidateImageFile(filePath)
+	mediaType, _, err := mediafile.ValidateImageFile(filePath)
 	if err != nil {
 		return nil, &MediaValidationError{Path: filePath, Err: err}
 	}
-	mediaID, err := c.initializeMediaUpload(totalBytes, mediaType)
+	mediaID, err := c.uploadMedia(filePath, mediaType)
 	if err != nil {
-		return nil, err
-	}
-	if err := c.appendMediaUpload(mediaID, filePath); err != nil {
-		return nil, err
-	}
-	if err := c.finalizeMediaUpload(mediaID); err != nil {
 		return nil, err
 	}
 
@@ -60,6 +54,73 @@ func (c *Client) UploadImage(filePath string) (*UploadMediaResult, error) {
 		MediaID:       mediaID,
 		MediaCategory: tweetImageCategory,
 	}, nil
+}
+
+func (c *Client) uploadMedia(filePath, mediaType string) (string, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	if err := writer.WriteField("media_category", tweetImageCategory); err != nil {
+		return "", fmt.Errorf("write media_category field: %w", err)
+	}
+	if err := writer.WriteField("media_type", mediaType); err != nil {
+		return "", fmt.Errorf("write media_type field: %w", err)
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("open image %q: %w", filePath, err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	part, err := writer.CreateFormFile("media", filepath.Base(filePath))
+	if err != nil {
+		return "", fmt.Errorf("create media form file: %w", err)
+	}
+	if _, err := io.Copy(part, file); err != nil {
+		return "", fmt.Errorf("write media form file: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return "", fmt.Errorf("close multipart writer: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/2/media/upload", &body)
+	if err != nil {
+		return "", fmt.Errorf("create media upload request: %w", err)
+	}
+	c.authorize(req)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("upload media: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if !isSuccess(resp.StatusCode) {
+		return "", apiError("upload media", resp)
+	}
+
+	var decoded struct {
+		Data struct {
+			ID             string               `json:"id"`
+			ProcessingInfo *mediaProcessingInfo `json:"processing_info"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return "", fmt.Errorf("decode media upload response: %w", err)
+	}
+	if decoded.Data.ID == "" {
+		return "", fmt.Errorf("media upload response missing data.id")
+	}
+	if err := c.waitForMediaProcessing(decoded.Data.ID, decoded.Data.ProcessingInfo); err != nil {
+		return "", err
+	}
+	return decoded.Data.ID, nil
 }
 
 func (c *Client) initializeMediaUpload(totalBytes int64, mediaType string) (string, error) {

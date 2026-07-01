@@ -48,6 +48,8 @@ Remediation:
 
 If the failure is rate-limit related, wait before retrying. If it is a media error, verify file paths, file sizes, and supported image formats.
 
+If the error mentions `/2/media/upload/initialize` for a normal image upload, you are running an older md2x build. Current V1 image uploads use the single-step `/2/media/upload` endpoint. Upgrade md2x and retry.
+
 For `429 Too Many Requests`, inspect the JSON error details:
 
 ```json

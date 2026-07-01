@@ -28,6 +28,14 @@ If credentials are unavailable, stop after `render` and report that live draft c
 
 For articles with local images, `render` is a pre-upload preview. The final `draft` request includes uploaded `media_id` values that do not exist until after the media upload step.
 
+Read `inspect --json` fields before calling `draft`:
+
+- `unique_media_count`: number of unique image contents that will be uploaded.
+- `estimated_x_requests.media_upload`: estimated media upload calls.
+- `estimated_x_requests.total`: estimated media upload calls plus the draft creation call.
+
+Duplicate image contents are uploaded once within a single `draft` command. Do not cache media IDs between commands; X media IDs can expire.
+
 ## Retry Rules
 
 - Do not retry validation errors without changing input.

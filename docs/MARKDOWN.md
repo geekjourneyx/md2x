@@ -66,6 +66,21 @@ During `draft`, md2x uploads each local body image and renders it as an `atomic`
 
 Supported local image extensions are `.png`, `.jpg`, `.jpeg`, and `.webp`. GIF is rejected in V1 because the media upload path is image-only and deterministic. md2x also checks image headers and rejects files whose contents do not match their extension before authentication or upload.
 
+Image upload cost and request count are based on unique image contents in a single `draft` command. If the same file, or two files with identical bytes and media type, is used more than once, md2x uploads it once and reuses the returned `media_id`.
+
+Use `inspect --json` before `draft` to see the estimated X request count:
+
+```json
+{
+  "unique_media_count": 2,
+  "estimated_x_requests": {
+    "media_upload": 2,
+    "create_draft": 1,
+    "total": 3
+  }
+}
+```
+
 ## Not First-Class In V1
 
 These constructs are not treated as native X Article features in V1:

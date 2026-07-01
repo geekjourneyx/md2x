@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.4] - 2026-07-01
+
+- Changed V1 image uploads to use the single-step X `POST /2/media/upload` endpoint for `.png`, `.jpg`, `.jpeg`, and `.webp` files.
+- Added per-command image deduplication by media type, file size, and SHA-256 so duplicate cover/body images reuse one uploaded `media_id`.
+- Added `inspect --json` request estimation fields: `unique_media_count` and `estimated_x_requests`.
+- Kept chunked media upload internals covered by tests for future video, GIF, or large-file support.
+- Updated X API, Markdown, usage, agent, and troubleshooting docs for the new image upload path and cost-aware workflow.
+
+Breaking changes: none.
+
+Migration notes: users seeing `/2/media/upload/initialize` timeouts for normal image uploads should upgrade and retry. Agents should read `inspect --json` request estimates before live `draft` calls.
+
+Verification summary: full Go tests, quality gates, release checks, npm pack check, and local build were run before tagging.
+
 ## [1.0.3] - 2026-07-01
 
 - Fixed X Article draft creation for Markdown without links or media by serializing empty DraftJS `entities` as `[]` instead of `null`.

@@ -10,12 +10,14 @@ import (
 )
 
 type inspectData struct {
-	Title      string               `json:"title"`
-	Cover      string               `json:"cover"`
-	BlockCount int                  `json:"block_count"`
-	AssetCount int                  `json:"asset_count"`
-	Warnings   []article.Diagnostic `json:"warnings"`
-	Ready      bool                 `json:"ready"`
+	Title              string               `json:"title"`
+	Cover              string               `json:"cover"`
+	BlockCount         int                  `json:"block_count"`
+	AssetCount         int                  `json:"asset_count"`
+	UniqueMediaCount   int                  `json:"unique_media_count"`
+	EstimatedXRequests xRequestEstimate     `json:"estimated_x_requests"`
+	Warnings           []article.Diagnostic `json:"warnings"`
+	Ready              bool                 `json:"ready"`
 }
 
 func newInspectCommand(opts *rootOptions) *cobra.Command {
@@ -36,13 +38,16 @@ func newInspectCommand(opts *rootOptions) *cobra.Command {
 			}
 
 			diagnostics := append(doc.Warnings, article.ValidateLocalInputs(doc)...)
+			uniqueMediaCount, requestEstimate := estimateDraftRequests(doc)
 			data := inspectData{
-				Title:      doc.Title,
-				Cover:      doc.Cover,
-				BlockCount: len(doc.Blocks),
-				AssetCount: len(doc.Assets),
-				Warnings:   diagnostics,
-				Ready:      !article.BlockingDiagnostics(diagnostics),
+				Title:              doc.Title,
+				Cover:              doc.Cover,
+				BlockCount:         len(doc.Blocks),
+				AssetCount:         len(doc.Assets),
+				UniqueMediaCount:   uniqueMediaCount,
+				EstimatedXRequests: requestEstimate,
+				Warnings:           diagnostics,
+				Ready:              !article.BlockingDiagnostics(diagnostics),
 			}
 			if opts.json {
 				return writeJSON(cmd.OutOrStdout(), Envelope{

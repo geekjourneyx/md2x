@@ -235,7 +235,94 @@ func TestDraftResultMarshalUsesJSONTags(t *testing.T) {
 	}
 }
 
-func TestUploadImageRunsInitializeAppendFinalize(t *testing.T) {
+func TestUploadImageUsesSingleStepMediaUpload(t *testing.T) {
+	imagePath := filepath.Join(t.TempDir(), "cover.png")
+	if err := os.WriteFile(imagePath, testPNG, 0600); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+
+	var calls []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer token-123" {
+			t.Fatalf("Authorization = %q, want Bearer token-123", r.Header.Get("Authorization"))
+		}
+		if r.URL.Path != "/2/media/upload" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		calls = append(calls, "upload")
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %q, want POST", r.Method)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("ParseMultipartForm: %v", err)
+		}
+		if r.FormValue("media_category") != "tweet_image" {
+			t.Fatalf("media_category = %q, want tweet_image", r.FormValue("media_category"))
+		}
+		if r.FormValue("media_type") != "image/png" {
+			t.Fatalf("media_type = %q, want image/png", r.FormValue("media_type"))
+		}
+		file, header, err := r.FormFile("media")
+		if err != nil {
+			t.Fatalf("FormFile(media): %v", err)
+		}
+		_ = file.Close()
+		if header.Filename != "cover.png" {
+			t.Fatalf("filename = %q, want cover.png", header.Filename)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"id":"media-123"}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "token-123", server.Client())
+
+	result, err := client.UploadImage(imagePath)
+	if err != nil {
+		t.Fatalf("UploadImage returned error: %v", err)
+	}
+	if result.MediaID != "media-123" {
+		t.Fatalf("MediaID = %q, want media-123", result.MediaID)
+	}
+	if result.MediaCategory != "tweet_image" {
+		t.Fatalf("MediaCategory = %q, want tweet_image", result.MediaCategory)
+	}
+	if got, want := strings.Join(calls, ","), "upload"; got != want {
+		t.Fatalf("calls = %q, want %q", got, want)
+	}
+}
+
+func TestUploadImageSingleStepErrorReturnsAPIError(t *testing.T) {
+	imagePath := writeTestImage(t)
+
+	var calls []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.URL.Path)
+		switch r.URL.Path {
+		case "/2/media/upload":
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error":"upload failed"}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "token-123", server.Client())
+
+	_, err := client.UploadImage(imagePath)
+	if err == nil {
+		t.Fatal("UploadImage returned nil error, want error")
+	}
+	if !strings.Contains(err.Error(), "upload media returned 500 Internal Server Error") {
+		t.Fatalf("error = %q, want upload status context", err.Error())
+	}
+	if got, want := strings.Join(calls, ","), "/2/media/upload"; got != want {
+		t.Fatalf("calls = %q, want %q", got, want)
+	}
+}
+
+func TestChunkedMediaUploadFunctionsRunInitializeAppendFinalize(t *testing.T) {
 	imagePath := filepath.Join(t.TempDir(), "cover.png")
 	if err := os.WriteFile(imagePath, testPNG, 0600); err != nil {
 		t.Fatalf("write image: %v", err)
@@ -306,116 +393,20 @@ func TestUploadImageRunsInitializeAppendFinalize(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, "token-123", server.Client())
-
-	result, err := client.UploadImage(imagePath)
+	mediaID, err := client.initializeMediaUpload(int64(len(testPNG)), "image/png")
 	if err != nil {
-		t.Fatalf("UploadImage returned error: %v", err)
+		t.Fatalf("initializeMediaUpload returned error: %v", err)
 	}
-	if result.MediaID != "media-123" {
-		t.Fatalf("MediaID = %q, want media-123", result.MediaID)
+	if mediaID != "media-123" {
+		t.Fatalf("mediaID = %q, want media-123", mediaID)
 	}
-	if result.MediaCategory != "tweet_image" {
-		t.Fatalf("MediaCategory = %q, want tweet_image", result.MediaCategory)
+	if err := client.appendMediaUpload(mediaID, imagePath); err != nil {
+		t.Fatalf("appendMediaUpload returned error: %v", err)
+	}
+	if err := client.finalizeMediaUpload(mediaID); err != nil {
+		t.Fatalf("finalizeMediaUpload returned error: %v", err)
 	}
 	if got, want := strings.Join(calls, ","), "initialize,append,finalize"; got != want {
-		t.Fatalf("calls = %q, want %q", got, want)
-	}
-}
-
-func TestUploadImageInitializeErrorReturnsErrorAndStops(t *testing.T) {
-	imagePath := writeTestImage(t)
-
-	var calls []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls = append(calls, r.URL.Path)
-		switch r.URL.Path {
-		case "/2/media/upload/initialize":
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(`{"error":"initialize failed"}`))
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
-
-	client := NewClient(server.URL, "token-123", server.Client())
-
-	_, err := client.UploadImage(imagePath)
-	if err == nil {
-		t.Fatal("UploadImage returned nil error, want error")
-	}
-	if !strings.Contains(err.Error(), "initialize media upload returned 500 Internal Server Error") {
-		t.Fatalf("error = %q, want initialize status context", err.Error())
-	}
-	if got, want := strings.Join(calls, ","), "/2/media/upload/initialize"; got != want {
-		t.Fatalf("calls = %q, want %q", got, want)
-	}
-}
-
-func TestUploadImageAppendErrorReturnsErrorAndStopsBeforeFinalize(t *testing.T) {
-	imagePath := writeTestImage(t)
-
-	var calls []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls = append(calls, r.URL.Path)
-		switch r.URL.Path {
-		case "/2/media/upload/initialize":
-			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"data":{"id":"media-123"}}`))
-		case "/2/media/upload/media-123/append":
-			w.WriteHeader(http.StatusBadGateway)
-			_, _ = w.Write([]byte(`{"error":"append failed"}`))
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
-
-	client := NewClient(server.URL, "token-123", server.Client())
-
-	_, err := client.UploadImage(imagePath)
-	if err == nil {
-		t.Fatal("UploadImage returned nil error, want error")
-	}
-	if !strings.Contains(err.Error(), "append media upload returned 502 Bad Gateway") {
-		t.Fatalf("error = %q, want append status context", err.Error())
-	}
-	if got, want := strings.Join(calls, ","), "/2/media/upload/initialize,/2/media/upload/media-123/append"; got != want {
-		t.Fatalf("calls = %q, want %q", got, want)
-	}
-}
-
-func TestUploadImageFinalizeErrorReturnsError(t *testing.T) {
-	imagePath := writeTestImage(t)
-
-	var calls []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls = append(calls, r.URL.Path)
-		switch r.URL.Path {
-		case "/2/media/upload/initialize":
-			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"data":{"id":"media-123"}}`))
-		case "/2/media/upload/media-123/append":
-			w.WriteHeader(http.StatusNoContent)
-		case "/2/media/upload/media-123/finalize":
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte(`{"error":"finalize failed"}`))
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
-
-	client := NewClient(server.URL, "token-123", server.Client())
-
-	_, err := client.UploadImage(imagePath)
-	if err == nil {
-		t.Fatal("UploadImage returned nil error, want error")
-	}
-	if !strings.Contains(err.Error(), "finalize media upload returned 503 Service Unavailable") {
-		t.Fatalf("error = %q, want finalize status context", err.Error())
-	}
-	if got, want := strings.Join(calls, ","), "/2/media/upload/initialize,/2/media/upload/media-123/append,/2/media/upload/media-123/finalize"; got != want {
 		t.Fatalf("calls = %q, want %q", got, want)
 	}
 }
@@ -427,23 +418,20 @@ func TestUploadImageFinalizeProcessingPollsStatusUntilSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.URL.String())
 		switch r.URL.Path {
-		case "/2/media/upload/initialize":
-			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"data":{"id":"media-123"}}`))
-		case "/2/media/upload/media-123/append":
-			w.WriteHeader(http.StatusNoContent)
-		case "/2/media/upload/media-123/finalize":
+		case "/2/media/upload":
+			if r.Method == http.MethodGet {
+				if r.URL.Query().Get("media_id") != "media-123" {
+					t.Fatalf("media_id = %q, want media-123", r.URL.Query().Get("media_id"))
+				}
+				if r.URL.Query().Get("command") != "STATUS" {
+					t.Fatalf("command = %q, want STATUS", r.URL.Query().Get("command"))
+				}
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"data":{"id":"media-123","processing_info":{"state":"succeeded","check_after_secs":0,"progress_percent":100}}}`))
+				return
+			}
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"data":{"id":"media-123","processing_info":{"state":"pending","check_after_secs":0,"progress_percent":10}}}`))
-		case "/2/media/upload":
-			if r.URL.Query().Get("media_id") != "media-123" {
-				t.Fatalf("media_id = %q, want media-123", r.URL.Query().Get("media_id"))
-			}
-			if r.URL.Query().Get("command") != "STATUS" {
-				t.Fatalf("command = %q, want STATUS", r.URL.Query().Get("command"))
-			}
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"data":{"id":"media-123","processing_info":{"state":"succeeded","check_after_secs":0,"progress_percent":100}}}`))
 		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -459,7 +447,7 @@ func TestUploadImageFinalizeProcessingPollsStatusUntilSuccess(t *testing.T) {
 	if result.MediaID != "media-123" {
 		t.Fatalf("MediaID = %q, want media-123", result.MediaID)
 	}
-	if got, want := strings.Join(calls, ","), "/2/media/upload/initialize,/2/media/upload/media-123/append,/2/media/upload/media-123/finalize,/2/media/upload?command=STATUS&media_id=media-123"; got != want {
+	if got, want := strings.Join(calls, ","), "/2/media/upload,/2/media/upload?command=STATUS&media_id=media-123"; got != want {
 		t.Fatalf("calls = %q, want %q", got, want)
 	}
 }
@@ -469,15 +457,12 @@ func TestUploadImageStatusFailureReturnsError(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/2/media/upload/initialize":
-			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"data":{"id":"media-123"}}`))
-		case "/2/media/upload/media-123/append":
-			w.WriteHeader(http.StatusNoContent)
-		case "/2/media/upload/media-123/finalize":
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"data":{"id":"media-123","processing_info":{"state":"in_progress","check_after_secs":0}}}`))
 		case "/2/media/upload":
+			if r.Method == http.MethodPost {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"data":{"id":"media-123","processing_info":{"state":"in_progress","check_after_secs":0}}}`))
+				return
+			}
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"data":{"id":"media-123","processing_info":{"state":"failed","check_after_secs":0,"progress_percent":40}}}`))
 		default:
@@ -503,15 +488,12 @@ func TestUploadImageStatusPendingEventuallyReturnsError(t *testing.T) {
 	statusCalls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/2/media/upload/initialize":
-			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"data":{"id":"media-123"}}`))
-		case "/2/media/upload/media-123/append":
-			w.WriteHeader(http.StatusNoContent)
-		case "/2/media/upload/media-123/finalize":
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"data":{"id":"media-123","processing_info":{"state":"pending","check_after_secs":0}}}`))
 		case "/2/media/upload":
+			if r.Method == http.MethodPost {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"data":{"id":"media-123","processing_info":{"state":"pending","check_after_secs":0}}}`))
+				return
+			}
 			statusCalls++
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"data":{"id":"media-123","processing_info":{"state":"in_progress","check_after_secs":0,"progress_percent":50}}}`))

@@ -92,23 +92,21 @@ Intro text.
 		defer mu.Unlock()
 
 		switch {
-		case r.Method == http.MethodPost && r.URL.Path == "/2/media/upload/initialize":
+		case r.Method == http.MethodPost && r.URL.Path == "/2/media/upload":
 			mediaSeq++
 			mediaID := fmt.Sprintf("media-%d", mediaSeq)
-			calls = append(calls, "initialize:"+mediaID)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprintf(w, `{"data":{"id":%q}}`, mediaID)
-		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/2/media/upload/") && strings.HasSuffix(r.URL.Path, "/append"):
-			calls = append(calls, "append:"+mediaIDFromPath(r.URL.Path))
+			calls = append(calls, "upload:"+mediaID)
 			if err := r.ParseMultipartForm(1 << 20); err != nil {
-				t.Errorf("parse append multipart: %v", err)
+				t.Errorf("parse upload multipart: %v", err)
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			w.WriteHeader(http.StatusNoContent)
-		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/2/media/upload/") && strings.HasSuffix(r.URL.Path, "/finalize"):
-			mediaID := mediaIDFromPath(r.URL.Path)
-			calls = append(calls, "finalize:"+mediaID)
+			if r.FormValue("media_category") != "tweet_image" {
+				t.Errorf("media_category = %q, want tweet_image", r.FormValue("media_category"))
+			}
+			if r.FormValue("media_type") != "image/png" {
+				t.Errorf("media_type = %q, want image/png", r.FormValue("media_type"))
+			}
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprintf(w, `{"data":{"id":%q}}`, mediaID)
 		case r.Method == http.MethodPost && r.URL.Path == "/2/articles/draft":
@@ -171,17 +169,17 @@ Intro text.
 	if got.Data.Media[0].Role != "cover" || got.Data.Media[0].Source != "./cover.png" || got.Data.Media[0].MediaID != "media-1" || got.Data.Media[0].MediaCategory != "tweet_image" || got.Data.Media[0].AssetIndex != nil {
 		t.Fatalf("cover media = %+v, want cover media-1 tweet_image without asset index", got.Data.Media[0])
 	}
-	if got.Data.Media[1].Role != "body" || got.Data.Media[1].Source != "./diagram.png" || got.Data.Media[1].MediaID != "media-2" || got.Data.Media[1].MediaCategory != "tweet_image" || got.Data.Media[1].AssetIndex == nil || *got.Data.Media[1].AssetIndex != 0 {
-		t.Fatalf("body media = %+v, want diagram media-2 tweet_image asset index 0", got.Data.Media[1])
+	if got.Data.Media[1].Role != "body" || got.Data.Media[1].Source != "./diagram.png" || got.Data.Media[1].MediaID != "media-1" || got.Data.Media[1].MediaCategory != "tweet_image" || got.Data.Media[1].AssetIndex == nil || *got.Data.Media[1].AssetIndex != 0 {
+		t.Fatalf("body media = %+v, want deduplicated diagram media-1 tweet_image asset index 0", got.Data.Media[1])
 	}
 
-	wantCalls := []string{"initialize:media-1", "append:media-1", "finalize:media-1", "initialize:media-2", "append:media-2", "finalize:media-2", "draft"}
+	wantCalls := []string{"upload:media-1", "draft"}
 	if strings.Join(calls, ",") != strings.Join(wantCalls, ",") {
 		t.Fatalf("calls = %v, want %v", calls, wantCalls)
 	}
 	assertDraftCoverMedia(t, draftBody, "media-1")
 	assertNoOrderedListData(t, draftBody)
-	assertDraftBodyImageEntity(t, draftBody, "media-2")
+	assertDraftBodyImageEntity(t, draftBody, "media-1")
 }
 
 func TestDraftUsesEnvBearerTokenAndHumanOutput(t *testing.T) {
@@ -465,14 +463,6 @@ func writeFile(t *testing.T, path string, content interface{}) {
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
-}
-
-func mediaIDFromPath(path string) string {
-	parts := strings.Split(path, "/")
-	if len(parts) < 5 {
-		return ""
-	}
-	return parts[4]
 }
 
 func assertDraftBodyImageEntity(t *testing.T, body map[string]interface{}, wantMediaID string) {

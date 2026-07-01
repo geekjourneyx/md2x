@@ -1,6 +1,6 @@
 {
   "name": "@geekjourneyx/md2x",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Agent Native CLI for publishing Markdown to X Articles with DraftJS, media upload, and OAuth2 PKCE.",
   "license": "AGPL-3.0-only",
   "repository": {

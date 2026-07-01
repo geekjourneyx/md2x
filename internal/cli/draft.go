@@ -233,9 +233,10 @@ func uploadDraftMedia(client *xapi.Client, doc *article.Document) (*xapi.MediaRe
 	baseDir := filepath.Dir(doc.SourcePath)
 	var coverMedia *xapi.MediaRef
 	var media []draftMediaData
+	uploadCache := newMediaUploadCache()
 
 	if doc.Cover != "" {
-		result, err := client.UploadImage(resolveArticlePath(baseDir, doc.Cover))
+		result, err := uploadCache.uploadImage(client, resolveArticlePath(baseDir, doc.Cover))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -255,7 +256,7 @@ func uploadDraftMedia(client *xapi.Client, doc *article.Document) (*xapi.MediaRe
 		if asset.Role != "body" {
 			continue
 		}
-		result, err := client.UploadImage(resolveArticlePath(baseDir, asset.Source))
+		result, err := uploadCache.uploadImage(client, resolveArticlePath(baseDir, asset.Source))
 		if err != nil {
 			return nil, nil, err
 		}
