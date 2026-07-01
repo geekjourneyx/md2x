@@ -56,6 +56,7 @@ auth:
 version: 1
 api:
   base_url: https://api.x.com
+  timeout: 120s
 auth:
   mode: oauth2_pkce
   client_id: ""
@@ -73,16 +74,19 @@ auth:
   username: ""
 ```
 
+`api.timeout` controls the HTTP client timeout for live X API calls such as media upload and draft creation. It uses Go duration syntax, for example `60s`, `120s`, or `2m`.
+
 `client_id` is the OAuth2 Client ID from the X app's User authentication settings. `bearer_token` must be an X user-context access token and is mainly for smoke tests or controlled local automation.
 
 ## Priority
 
 md2x resolves configuration in this order:
 
-1. Command flags, such as `--api-base-url`, `--app`, `--username`, and `--xurl-config`.
+1. Command flags, such as `--api-base-url`, `--api-timeout`, `--app`, `--username`, and `--xurl-config`.
 2. Environment variables:
    - `X_BEARER_TOKEN`
    - `MD2X_API_BASE_URL`
+   - `MD2X_HTTP_TIMEOUT`
    - `MD2X_CLIENT_ID`
    - `MD2X_REDIRECT_URI`
    - `MD2X_AUTH_PROFILE`

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/geekjourneyx/md2x/internal/auth"
 	"gopkg.in/yaml.v3"
@@ -13,6 +14,7 @@ import (
 
 const Version = 1
 const DefaultAPIBaseURL = "https://api.x.com"
+const DefaultAPITimeout = "120s"
 
 type Config struct {
 	Version int        `yaml:"version" json:"version"`
@@ -22,6 +24,7 @@ type Config struct {
 
 type APIConfig struct {
 	BaseURL string `yaml:"base_url" json:"base_url"`
+	Timeout string `yaml:"timeout" json:"timeout"`
 }
 
 type AuthConfig struct {
@@ -71,6 +74,7 @@ func Default() Config {
 		Version: Version,
 		API: APIConfig{
 			BaseURL: DefaultAPIBaseURL,
+			Timeout: DefaultAPITimeout,
 		},
 		Auth: AuthConfig{
 			Mode:        "oauth2_pkce",
@@ -135,6 +139,9 @@ func ApplyEnv(cfg Config) Config {
 	if value := strings.TrimSpace(os.Getenv("MD2X_API_BASE_URL")); value != "" {
 		cfg.API.BaseURL = value
 	}
+	if value := strings.TrimSpace(os.Getenv("MD2X_HTTP_TIMEOUT")); value != "" {
+		cfg.API.Timeout = value
+	}
 	if value := strings.TrimSpace(os.Getenv("X_BEARER_TOKEN")); value != "" {
 		cfg.Auth.BearerToken = value
 	}
@@ -188,6 +195,9 @@ func normalize(cfg *Config) {
 	if strings.TrimSpace(cfg.API.BaseURL) == "" {
 		cfg.API.BaseURL = DefaultAPIBaseURL
 	}
+	if strings.TrimSpace(cfg.API.Timeout) == "" {
+		cfg.API.Timeout = DefaultAPITimeout
+	}
 	if strings.TrimSpace(cfg.Auth.Mode) == "" {
 		cfg.Auth.Mode = "oauth2_pkce"
 	}
@@ -200,4 +210,19 @@ func normalize(cfg *Config) {
 	if strings.TrimSpace(cfg.Auth.Profile) == "" {
 		cfg.Auth.Profile = auth.DefaultProfile
 	}
+}
+
+func APITimeout(value string) (time.Duration, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		value = DefaultAPITimeout
+	}
+	timeout, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("parse api.timeout %q: %w", value, err)
+	}
+	if timeout <= 0 {
+		return 0, fmt.Errorf("api.timeout must be greater than 0, got %q", value)
+	}
+	return timeout, nil
 }

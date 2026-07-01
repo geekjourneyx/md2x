@@ -64,7 +64,7 @@ func TestConfigInitAndShowRedactsToken(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	cmd, _ := newRootCommand()
 
-	out, err := executeCommand(t, cmd, "--config", configPath, "--json", "config", "init", "--bearer-token", "secret-token", "--app", "md2x", "--client-id", "client-123")
+	out, err := executeCommand(t, cmd, "--config", configPath, "--json", "config", "init", "--bearer-token", "secret-token", "--app", "md2x", "--client-id", "client-123", "--api-timeout", "75s")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,6 +87,9 @@ func TestConfigInitAndShowRedactsToken(t *testing.T) {
 	var envelope struct {
 		Data struct {
 			Config struct {
+				API struct {
+					Timeout string `json:"timeout"`
+				} `json:"api"`
 				Auth struct {
 					BearerToken string `json:"bearer_token"`
 					ClientID    string `json:"client_id"`
@@ -102,11 +105,34 @@ func TestConfigInitAndShowRedactsToken(t *testing.T) {
 	if strings.Contains(out, "secret-token") || envelope.Data.Config.Auth.BearerToken != "<redacted>" {
 		t.Fatalf("config show redaction failed: %#v\n%s", envelope.Data.Config.Auth, out)
 	}
+	if envelope.Data.Config.API.Timeout != "75s" {
+		t.Fatalf("api.timeout = %q, want 75s", envelope.Data.Config.API.Timeout)
+	}
 	if envelope.Data.Config.Auth.ClientID != "client-123" {
 		t.Fatalf("client_id = %q, want client-123", envelope.Data.Config.Auth.ClientID)
 	}
 	if envelope.Data.Config.Auth.RedirectURI != auth.DefaultRedirectURI || envelope.Data.Config.Auth.Profile != auth.DefaultProfile {
 		t.Fatalf("oauth defaults = %#v", envelope.Data.Config.Auth)
+	}
+}
+
+func TestDraftRejectsInvalidAPITimeoutBeforeAuth(t *testing.T) {
+	articlePath := writeArticle(t, "# Timeout Test\n\nBody")
+	cmd, _ := newRootCommand()
+
+	_, err := executeCommand(t, cmd, "--json", "draft", articlePath, "--api-timeout", "0s")
+	if err == nil {
+		t.Fatal("draft returned nil error, want timeout validation error")
+	}
+	exitErr, ok := err.(*ExitError)
+	if !ok {
+		t.Fatalf("error = %T, want *ExitError", err)
+	}
+	if exitErr.Code != "API_TIMEOUT_INVALID" {
+		t.Fatalf("code = %q, want API_TIMEOUT_INVALID", exitErr.Code)
+	}
+	if !strings.Contains(exitErr.Message, "api.timeout") {
+		t.Fatalf("message = %q, want api.timeout detail", exitErr.Message)
 	}
 }
 

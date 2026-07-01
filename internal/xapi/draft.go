@@ -43,7 +43,7 @@ func (c *Client) CreateDraft(input CreateDraftRequest) (*DraftResult, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("create draft: %w", err)
+		return nil, c.requestError("create draft", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()

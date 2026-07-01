@@ -1,6 +1,7 @@
 package xapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/geekjourneyx/md2x/internal/draftjs"
 )
@@ -30,6 +32,9 @@ func TestNewClientDefaultsAndTrimsBaseURL(t *testing.T) {
 	if client.httpClient.Timeout == 0 {
 		t.Fatal("default httpClient timeout = 0, want finite timeout")
 	}
+	if client.httpClient.Timeout != 120*time.Second {
+		t.Fatalf("default httpClient timeout = %s, want 120s", client.httpClient.Timeout)
+	}
 
 	customHTTPClient := &http.Client{}
 	client = NewClient("https://example.test///", "token-456", customHTTPClient)
@@ -39,6 +44,41 @@ func TestNewClientDefaultsAndTrimsBaseURL(t *testing.T) {
 	if client.httpClient != customHTTPClient {
 		t.Fatalf("httpClient = %#v, want custom client", client.httpClient)
 	}
+}
+
+func TestNewClientWithTimeoutUsesConfiguredTimeout(t *testing.T) {
+	client := NewClientWithTimeout("", "token-123", nil, 45*time.Second)
+
+	if client.httpClient.Timeout != 45*time.Second {
+		t.Fatalf("httpClient timeout = %s, want 45s", client.httpClient.Timeout)
+	}
+}
+
+func TestUploadImageRequestErrorIncludesTimeout(t *testing.T) {
+	imagePath := filepath.Join(t.TempDir(), "image.png")
+	if err := os.WriteFile(imagePath, testPNG, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	client := NewClientWithTimeout("https://api.example.test", "token-123", &http.Client{
+		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, context.DeadlineExceeded
+		}),
+	}, 2*time.Minute)
+
+	_, err := client.UploadImage(imagePath)
+	if err == nil {
+		t.Fatal("UploadImage returned nil error, want error")
+	}
+	if !strings.Contains(err.Error(), "timeout 2m0s") {
+		t.Fatalf("error = %q, want configured timeout", err.Error())
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
 func TestCreateDraftSendsArticlePayload(t *testing.T) {

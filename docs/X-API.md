@@ -131,6 +131,8 @@ Markdown links become `link` entities plus `entity_ranges`:
 
 Images are uploaded before draft creation. V1 uses the single-step `POST /2/media/upload` endpoint for `.png`, `.jpg`, `.jpeg`, and `.webp` images because the official endpoint supports `tweet_image` directly and avoids the extra initialize/append/finalize requests needed by chunked upload.
 
+Live X API requests use a finite HTTP timeout. The default is `120s`, configurable with `api.timeout`, `MD2X_HTTP_TIMEOUT`, or `draft --api-timeout`.
+
 Within one `draft` command, md2x fingerprints local image files by media type, size, and SHA-256. Duplicate image contents are uploaded once and the resulting `media_id` is reused for every cover or body image reference in that draft.
 
 Body images are then emitted as an `atomic` block and an `image` entity:

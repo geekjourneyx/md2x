@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.6] - 2026-07-01
+
+- Increased the default live X API HTTP timeout from `30s` to `120s` for slow media upload and draft creation responses.
+- Added configurable X API timeout support through `api.timeout`, `MD2X_HTTP_TIMEOUT`, `draft --api-timeout`, and `config init --api-timeout`.
+- Added early validation for invalid timeout values with the stable `API_TIMEOUT_INVALID` error code.
+- Included the effective timeout in X API request error messages to make upload timeout diagnosis explicit.
+- Updated configuration, usage, troubleshooting, and X API documentation for timeout tuning.
+
+Breaking changes: none.
+
+Migration notes: no CLI migration is required. Users who still see X media upload timeouts can retry with `md2x draft article.md --api-timeout 2m --json` or set `MD2X_HTTP_TIMEOUT=2m`.
+
+Verification summary: full Go tests, quality gates, release checks, npm pack check, and local build were run before tagging.
+
 ## [1.0.5] - 2026-07-01
 
 - Added a hard timeout and bounded retry window to the release workflow's cnpm/npmmirror sync step.

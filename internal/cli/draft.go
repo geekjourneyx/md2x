@@ -37,6 +37,7 @@ func newDraftCommand(opts *rootOptions) *cobra.Command {
 	var appName string
 	var username string
 	var apiBaseURL string
+	var apiTimeout string
 	var clientID string
 	var authProfile string
 
@@ -77,6 +78,9 @@ func newDraftCommand(opts *rootOptions) *cobra.Command {
 			if cmd.Flags().Changed("api-base-url") {
 				cfg.API.BaseURL = apiBaseURL
 			}
+			if cmd.Flags().Changed("api-timeout") {
+				cfg.API.Timeout = apiTimeout
+			}
 			if cmd.Flags().Changed("xurl-config") {
 				cfg.Auth.XurlConfig = xurlConfig
 			}
@@ -92,13 +96,17 @@ func newDraftCommand(opts *rootOptions) *cobra.Command {
 			if cmd.Flags().Changed("auth-profile") {
 				cfg.Auth.Profile = authProfile
 			}
+			timeout, err := md2xconfig.APITimeout(cfg.API.Timeout)
+			if err != nil {
+				return &ExitError{Code: "API_TIMEOUT_INVALID", Message: err.Error(), Exit: 3, Err: err}
+			}
 
 			accessToken, err := resolveDraftAccessToken(cmd, cfg)
 			if err != nil {
 				return err
 			}
 
-			client := xapi.NewClient(cfg.API.BaseURL, accessToken, nil)
+			client := xapi.NewClientWithTimeout(cfg.API.BaseURL, accessToken, nil, timeout)
 			coverMedia, uploadedMedia, err := uploadDraftMedia(client, doc)
 			if err != nil {
 				var mediaValidationErr *xapi.MediaValidationError
@@ -148,6 +156,7 @@ func newDraftCommand(opts *rootOptions) *cobra.Command {
 	cmd.Flags().StringVar(&clientID, "client-id", "", "X OAuth2 client ID for native token refresh")
 	cmd.Flags().StringVar(&authProfile, "auth-profile", "", "local OAuth2 token profile")
 	cmd.Flags().StringVar(&apiBaseURL, "api-base-url", md2xconfig.DefaultAPIBaseURL, "X API base URL")
+	cmd.Flags().StringVar(&apiTimeout, "api-timeout", md2xconfig.DefaultAPITimeout, "X API HTTP timeout")
 	return cmd
 }
 

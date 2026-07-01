@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDefaultPathUsesUnixConfigHome(t *testing.T) {
@@ -50,6 +51,16 @@ func TestLoadMissingConfigReturnsDefaults(t *testing.T) {
 	if cfg.API.BaseURL != DefaultAPIBaseURL {
 		t.Fatalf("BaseURL = %q, want default", cfg.API.BaseURL)
 	}
+	if cfg.API.Timeout != "120s" {
+		t.Fatalf("Timeout = %q, want 120s", cfg.API.Timeout)
+	}
+	timeout, err := APITimeout(cfg.API.Timeout)
+	if err != nil {
+		t.Fatalf("APITimeout returned error: %v", err)
+	}
+	if timeout != 120*time.Second {
+		t.Fatalf("APITimeout = %s, want 120s", timeout)
+	}
 }
 
 func TestWriteInitialAndLoad(t *testing.T) {
@@ -83,6 +94,7 @@ func TestWriteInitialAndLoad(t *testing.T) {
 
 func TestApplyEnvOverridesConfig(t *testing.T) {
 	t.Setenv("MD2X_API_BASE_URL", "https://api.example.test")
+	t.Setenv("MD2X_HTTP_TIMEOUT", "45s")
 	t.Setenv("X_BEARER_TOKEN", "env-token")
 	t.Setenv("MD2X_APP", "env-app")
 	t.Setenv("MD2X_USERNAME", "env-user")
@@ -99,11 +111,24 @@ func TestApplyEnvOverridesConfig(t *testing.T) {
 	if got.API.BaseURL != "https://api.example.test" {
 		t.Fatalf("BaseURL = %q", got.API.BaseURL)
 	}
+	if got.API.Timeout != "45s" {
+		t.Fatalf("Timeout = %q, want 45s", got.API.Timeout)
+	}
 	if got.Auth.BearerToken != "env-token" || got.Auth.App != "env-app" || got.Auth.Username != "env-user" || got.Auth.XurlConfig != "/tmp/xurl.yaml" {
 		t.Fatalf("env config = %#v", got.Auth)
 	}
 	if got.Auth.ClientID != "client-env" || got.Auth.RedirectURI != "http://127.0.0.1:9999/callback" || got.Auth.Profile != "work" {
 		t.Fatalf("env oauth config = %#v", got.Auth)
+	}
+}
+
+func TestAPITimeoutRejectsInvalidValues(t *testing.T) {
+	for _, value := range []string{"0s", "-1s", "not-a-duration"} {
+		t.Run(value, func(t *testing.T) {
+			if _, err := APITimeout(value); err == nil {
+				t.Fatal("APITimeout returned nil error, want error")
+			}
+		})
 	}
 }
 

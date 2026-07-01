@@ -95,7 +95,7 @@ func (c *Client) uploadMedia(filePath, mediaType string) (string, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("upload media: %w", err)
+		return "", c.requestError("upload media", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()

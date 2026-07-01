@@ -50,6 +50,28 @@ If the failure is rate-limit related, wait before retrying. If it is a media err
 
 If the error mentions `/2/media/upload/initialize` for a normal image upload, you are running an older md2x build. Current V1 image uploads use the single-step `/2/media/upload` endpoint. Upgrade md2x and retry.
 
+If the error says `Client.Timeout exceeded while awaiting headers`, the X API did not return response headers before md2x's HTTP timeout. The default live X API timeout is `120s`.
+
+For a one-off retry:
+
+```bash
+md2x draft article.md --api-timeout 2m --json
+```
+
+For a persistent local default:
+
+```yaml
+api:
+  base_url: https://api.x.com
+  timeout: 2m
+```
+
+For CI or agent runs:
+
+```bash
+MD2X_HTTP_TIMEOUT=2m md2x draft article.md --json
+```
+
 For `429 Too Many Requests`, inspect the JSON error details:
 
 ```json

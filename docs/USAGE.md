@@ -55,6 +55,12 @@ md2x draft article.md --json
 
 `draft` uploads media, renders DraftJS content, and creates an X Article draft. V1 does not publish by default.
 
+Live X API requests use `api.timeout`, which defaults to `120s`. Override it per command when X media upload is slow:
+
+```bash
+md2x draft article.md --api-timeout 2m --json
+```
+
 The JSON POST body is created from the same render path as `md2x render --format draftjs`, after media upload has attached final media IDs. Cover media is included only when frontmatter provides `cover`.
 
 V1 uploads images with the single-step X media endpoint. Duplicate image contents within the same command are uploaded once and reused. md2x does not persist media IDs across commands because uploaded media can expire.

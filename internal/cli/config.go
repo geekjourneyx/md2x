@@ -102,6 +102,7 @@ func newConfigInitCommand(opts *rootOptions) *cobra.Command {
 	var appName string
 	var username string
 	var apiBaseURL string
+	var apiTimeout string
 	var clientID string
 	var redirectURI string
 	var profile string
@@ -117,6 +118,10 @@ func newConfigInitCommand(opts *rootOptions) *cobra.Command {
 			}
 			cfg := md2xconfig.Default()
 			cfg.API.BaseURL = apiBaseURL
+			cfg.API.Timeout = apiTimeout
+			if _, err := md2xconfig.APITimeout(cfg.API.Timeout); err != nil {
+				return &ExitError{Code: "API_TIMEOUT_INVALID", Message: err.Error(), Exit: 2, Err: err}
+			}
 			if strings.TrimSpace(bearerToken) != "" {
 				cfg.Auth.BearerToken = bearerToken
 			}
@@ -165,6 +170,7 @@ func newConfigInitCommand(opts *rootOptions) *cobra.Command {
 	cmd.Flags().StringVar(&redirectURI, "redirect-uri", "", "OAuth2 callback URL")
 	cmd.Flags().StringVar(&profile, "auth-profile", "", "local OAuth2 token profile")
 	cmd.Flags().StringVar(&apiBaseURL, "api-base-url", md2xconfig.DefaultAPIBaseURL, "X API base URL")
+	cmd.Flags().StringVar(&apiTimeout, "api-timeout", md2xconfig.DefaultAPITimeout, "X API HTTP timeout")
 	return cmd
 }
 
