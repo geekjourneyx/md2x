@@ -123,6 +123,7 @@ contains ".github/workflows/release.yml" "npm pack --pack-destination" "release 
 contains ".github/workflows/release.yml" "npm publish --access public" "release workflow must publish npm"
 contains ".github/workflows/release.yml" "NPM_TOKEN" "release workflow must use NPM_TOKEN"
 contains ".github/workflows/release.yml" "npx --yes cnpm sync @geekjourneyx/md2x" "release workflow must sync cnpm after npm publish"
+contains ".github/workflows/release.yml" "timeout 120s npx --yes cnpm sync @geekjourneyx/md2x" "release workflow must bound cnpm sync runtime"
 contains ".github/workflows/release.yml" "registry.npmmirror.com" "release workflow must verify npmmirror after cnpm sync"
 contains "AGENTS.md" "npx cnpm sync @geekjourneyx/md2x" "AGENTS must document cnpm sync release rule"
 contains "docs/RELEASE.md" "npx cnpm sync @geekjourneyx/md2x" "release docs must document cnpm sync"

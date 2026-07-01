@@ -35,7 +35,7 @@ The release workflow must:
 - smoke-test the npm installer against release artifacts
 - publish GitHub release assets and `SHA256SUMS`
 - publish `@geekjourneyx/md2x` to npm with `npm publish --access public`
-- sync cnpm/npmmirror after npm publish with `npx cnpm sync @geekjourneyx/md2x`
+- sync cnpm/npmmirror after npm publish with a bounded `npx cnpm sync @geekjourneyx/md2x` retry window
 - verify `https://registry.npmmirror.com` reports the same released version
 
 The required GitHub secret is `NPM_TOKEN`.

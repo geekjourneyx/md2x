@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.5] - 2026-07-01
+
+- Added a hard timeout and bounded retry window to the release workflow's cnpm/npmmirror sync step.
+- Allowed the release workflow to continue when npmmirror already reports the target version after a cnpm sync timeout.
+- Updated release checks and release documentation to require bounded cnpm sync behavior.
+
+Breaking changes: none.
+
+Migration notes: no CLI migration is required.
+
+Verification summary: release checks, quality gates, npm pack check, and local build were run before tagging.
+
 ## [1.0.4] - 2026-07-01
 
 - Changed V1 image uploads to use the single-step X `POST /2/media/upload` endpoint for `.png`, `.jpg`, `.jpeg`, and `.webp` files.
