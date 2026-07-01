@@ -73,6 +73,36 @@ func TestRenderMapsBlockTypes(t *testing.T) {
 	}
 }
 
+func TestRenderOmitsInternalOrderedListData(t *testing.T) {
+	doc := &article.Document{
+		Blocks: []article.Block{
+			{Type: "ordered-list-item", Text: "First", Data: map[string]string{"number": "1"}},
+			{Type: "ordered-list-item", Text: "Second", Data: map[string]string{"number": "2"}},
+		},
+	}
+
+	state, err := Render(doc)
+	if err != nil {
+		t.Fatalf("Render returned error: %v", err)
+	}
+
+	data, err := json.Marshal(state)
+	if err != nil {
+		t.Fatalf("Marshal content state: %v", err)
+	}
+	if strings.Contains(string(data), `"number"`) || strings.Contains(string(data), `"data"`) {
+		t.Fatalf("ordered list content state leaked internal data: %s", data)
+	}
+	for i, block := range state.Blocks {
+		if block.Type != "ordered-list-item" {
+			t.Fatalf("block %d Type = %q, want ordered-list-item", i, block.Type)
+		}
+		if block.Data != nil {
+			t.Fatalf("block %d Data = %#v, want nil", i, block.Data)
+		}
+	}
+}
+
 func TestRenderItalicStyleRange(t *testing.T) {
 	doc := &article.Document{
 		Blocks: []article.Block{

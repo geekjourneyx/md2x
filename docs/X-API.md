@@ -46,9 +46,11 @@ md2x V1 token resolution order:
 }
 ```
 
-`cover_media` is omitted when the Markdown frontmatter has no `cover` field. Ordinary text blocks omit `data` entirely when no block data exists; md2x does not emit `data:null`.
+`cover_media` is omitted when the Markdown frontmatter has no `cover` field. Ordinary text and list blocks omit `data` entirely; md2x does not emit `data:null`.
 
 Local file paths and parser-only image metadata are not sent in the final image block payload. Uploaded body images are represented by image entities.
+
+The official X schema only allows known annotation arrays inside `blocks[].data`, such as `cashtags`, `hashtags`, `mentions`, and `urls`. md2x does not send parser-only fields such as ordered-list source numbers.
 
 ## Content State Shape
 

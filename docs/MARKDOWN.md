@@ -32,7 +32,7 @@ cover: ./cover.png
 | Image-only paragraph | `image` asset | `atomic` image entity after upload |
 | Fenced code block | `code` with warning | `unstyled` plain text |
 
-Ordered list source numbers are normalized by the Markdown parser. md2x preserves the effective item order in its internal block data, but X controls final numbering in the article editor.
+Ordered list source numbers are normalized by the Markdown parser for internal inspection. md2x does not send those parser-only numbers to X; X controls final numbering in the article editor.
 
 ## Supported Inline Syntax
 

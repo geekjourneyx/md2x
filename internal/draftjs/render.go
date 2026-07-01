@@ -23,7 +23,7 @@ func Render(doc *article.Document) (*ContentState, error) {
 			Text: source.Text,
 			Type: blockType(source),
 		}
-		if len(source.Data) > 0 {
+		if includeBlockData(source) {
 			block.Data = source.Data
 		}
 
@@ -88,6 +88,10 @@ func Render(doc *article.Document) (*ContentState, error) {
 	}
 
 	return state, nil
+}
+
+func includeBlockData(block article.Block) bool {
+	return block.Type == "image" && len(block.Data) > 0
 }
 
 func blockType(block article.Block) string {

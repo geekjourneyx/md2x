@@ -74,6 +74,9 @@ cover: ./cover.png
 
 Intro text.
 
+1. First step
+2. Second step
+
 ![Diagram](./diagram.png)
 `)
 	writeFile(t, filepath.Join(dir, "cover.png"), dummyPNG)
@@ -177,6 +180,7 @@ Intro text.
 		t.Fatalf("calls = %v, want %v", calls, wantCalls)
 	}
 	assertDraftCoverMedia(t, draftBody, "media-1")
+	assertNoOrderedListData(t, draftBody)
 	assertDraftBodyImageEntity(t, draftBody, "media-2")
 }
 
@@ -517,6 +521,32 @@ func assertDraftBodyImageEntity(t *testing.T, body map[string]interface{}, wantM
 		return
 	}
 	t.Fatalf("draft body has no atomic image block: %#v", contentState)
+}
+
+func assertNoOrderedListData(t *testing.T, body map[string]interface{}) {
+	t.Helper()
+	contentState, ok := body["content_state"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("content_state = %T, want object: %#v", body["content_state"], body["content_state"])
+	}
+	blocks, ok := contentState["blocks"].([]interface{})
+	if !ok {
+		t.Fatalf("blocks = %T, want array", contentState["blocks"])
+	}
+	var ordered int
+	for _, rawBlock := range blocks {
+		block, ok := rawBlock.(map[string]interface{})
+		if !ok || block["type"] != "ordered-list-item" {
+			continue
+		}
+		ordered++
+		if _, ok := block["data"]; ok {
+			t.Fatalf("ordered-list-item leaked data into X payload: %#v", block)
+		}
+	}
+	if ordered != 2 {
+		t.Fatalf("ordered-list-item count = %d, want 2 in %#v", ordered, blocks)
+	}
 }
 
 func assertDraftCoverMedia(t *testing.T, body map[string]interface{}, wantMediaID string) {
